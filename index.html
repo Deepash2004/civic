@@ -231,7 +231,7 @@
                 'Flooding': 'Waterlogging after rain, causing traffic slowdown.',
                 'Damaged Sidewalk / Footpath': 'Broken pavement on sidewalk is a tripping hazard.'
             };
-            const now = new Date('2025-09-13T12:07:00+05:30');
+            const now = new Date('2025-09-13T11:58:00+05:30');
             const promises = [];
             for (let i = 0; i < 20; i++) {
                 const category = categories[Math.floor(Math.random() * categories.length)];
@@ -292,26 +292,19 @@
             
             async function initializeFirebase() {
                  try {
-                    // **FIX**: Check for existence of crucial config variables before use.
-                    if (typeof __firebase_config === 'undefined' || typeof __app_id === 'undefined' || !__firebase_config) {
-                        throw new Error("Firebase configuration variables are not defined. The application cannot initialize.");
-                    }
-                    
                     const firebaseConfig = JSON.parse(__firebase_config);
-                    const appId = __app_id;
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                     const app = initializeApp(firebaseConfig);
                     db = getFirestore(app);
                     auth = getAuth(app);
                     const collectionPath = `/artifacts/${appId}/public/data/issues`;
                     issuesCollectionRef = collection(db, collectionPath);
-
                     onAuthStateChanged(auth, user => {
                         if (user) {
                             userId = user.uid;
                             seedDatabaseIfEmpty(issuesCollectionRef).then(() => listenForData());
                         }
                     });
-
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
@@ -319,8 +312,7 @@
                     }
                 } catch (error) {
                     console.error("Firebase Initialization Error:", error);
-                    // **FIX**: Provide a more helpful error message.
-                    DOMElements.mainContent.innerHTML = `<div class="p-6 text-center"><div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md" role="alert"><p class="font-bold">Connection Error</p><p>Could not connect to the database. This is likely due to missing Firebase configuration credentials in the environment.</p></div></div>`;
+                    DOMElements.mainContent.innerHTML = `<div class="p-4 text-center text-red-600 bg-red-100 rounded-md"><strong>Error:</strong> Could not connect to the database.</div>`;
                 }
             }
 
@@ -503,6 +495,7 @@
 
         window.initAdminApp = function() {
             if (typeof google === 'undefined') {
+                console.error("Google Maps API script failed to load.");
                 document.getElementById('map').innerHTML = `<div class="h-full w-full bg-gray-200 flex items-center justify-center p-4 text-center"><div><p class="text-red-600 font-semibold text-lg">Map could not be loaded.</p><p class="text-gray-600 mt-2 text-sm">Please ensure you have replaced <code class="bg-gray-300 px-1 rounded">YOUR_GOOGLE_MAPS_API_KEY</code> with a valid key.</p></div></div>`;
                 return;
             }

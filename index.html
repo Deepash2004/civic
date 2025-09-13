@@ -45,6 +45,9 @@
 
     <!-- Main Content -->
     <main class="flex-1 overflow-y-auto">
+        <div id="offline-mode-indicator" class="hidden sticky top-0 z-10 bg-yellow-100 border-b-2 border-yellow-300 text-yellow-800 text-center py-2 font-semibold">
+            Offline Demo Mode - Using local sample data
+        </div>
         <div id="dashboard-view">
             <div class="p-6">
                  <div class="flex justify-between items-center mb-6">
@@ -169,16 +172,44 @@
         <div id="departments-view" class="p-6 hidden">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Department Overview</h1>
             <div id="department-cards-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                <!-- Department cards will be injected here -->
             </div>
         </div>
     </main>
     
-    <!-- Firebase and App Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, getDocs, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- BUILT-IN DUMMY DATA FOR OFFLINE MODE ---
+        function getBuiltInDummyData() {
+            console.log("Using built-in dummy data for offline mode.");
+            const now = new Date('2025-09-13T12:24:00+05:30');
+            const data = [
+                { id: 'offline_1', category: 'Pothole / Road Damage', description: 'Deep pothole at the entrance of Lajpat Nagar market.', lat: 28.5678, lng: 77.2436, status: 'New', department: 'Public Works', assignedOfficer: null, urgency: 4, timestamp: new Date(now.getTime() - 2 * 24 * 3600 * 1000) },
+                { id: 'offline_2', category: 'Traffic Accident', description: 'Minor collision near India Gate, causing traffic jam.', lat: 28.6129, lng: 77.2295, status: 'In Progress', department: 'Traffic', assignedOfficer: 'Inspector Singh', urgency: 8, timestamp: new Date(now.getTime() - 1 * 3600 * 1000) },
+                { id: 'offline_3', category: 'Waste Management / Overflowing Bin', description: 'Garbage bin near Connaught Place is overflowing.', lat: 28.6330, lng: 77.2199, status: 'Resolved', department: 'Sanitation', assignedOfficer: 'Officer Sharma', urgency: 3, timestamp: new Date(now.getTime() - 5 * 24 * 3600 * 1000) },
+                { id: 'offline_4', category: 'Streetlight Malfunction', description: 'Streetlight not working on main road in Karol Bagh.', lat: 28.6496, lng: 77.1912, status: 'In Progress', department: 'Electrical', assignedOfficer: 'Deputy Gupta', urgency: 5, timestamp: new Date(now.getTime() - 3 * 24 * 3600 * 1000) },
+                { id: 'offline_5', category: 'Fallen Tree / Debris', description: 'A large tree has fallen and is blocking a road in Hauz Khas.', lat: 28.5535, lng: 77.2052, status: 'Resolved', department: 'Public Works', assignedOfficer: 'Superintendent Verma', urgency: 7, timestamp: new Date(now.getTime() - 10 * 24 * 3600 * 1000) },
+                { id: 'offline_6', category: 'Flooding', description: 'Severe waterlogging at Minto Road underpass after rain.', lat: 28.6333, lng: 77.2344, status: 'New', department: 'Public Works', assignedOfficer: null, urgency: 7, timestamp: new Date(now.getTime() - 12 * 3600 * 1000) },
+                { id: 'offline_7', category: 'Damaged Sidewalk / Footpath', description: 'Pavement is broken near Nehru Place metro station.', lat: 28.5478, lng: 77.2514, status: 'In Progress', department: 'Public Works', assignedOfficer: 'Officer Sharma', urgency: 3, timestamp: new Date(now.getTime() - 8 * 24 * 3600 * 1000) },
+                { id: 'offline_8', category: 'Traffic Accident', description: 'Major accident involving a bus near Dhaula Kuan. Emergency services on site.', lat: 28.5912, lng: 77.1690, status: 'New', department: 'Traffic', assignedOfficer: null, urgency: 10, timestamp: new Date(now.getTime() - 30 * 60 * 1000) },
+                { id: 'offline_9', category: 'Waste Management / Overflowing Bin', description: 'Bin overflowing in residential area of Rohini.', lat: 28.7041, lng: 77.1025, status: 'New', department: 'Sanitation', assignedOfficer: null, urgency: 2, timestamp: new Date(now.getTime() - 22 * 3600 * 1000) },
+                { id: 'offline_10', category: 'Pothole / Road Damage', description: 'Series of dangerous potholes on the Outer Ring Road.', lat: 28.6791, lng: 77.1599, status: 'Resolved', department: 'Public Works', assignedOfficer: 'Superintendent Verma', urgency: 5, timestamp: new Date(now.getTime() - 15 * 24 * 3600 * 1000) },
+                { id: 'offline_11', category: 'Streetlight Malfunction', description: 'Entire street in Vasant Kunj has no lighting.', lat: 28.5284, lng: 77.1542, status: 'New', department: 'Electrical', assignedOfficer: null, urgency: 6, timestamp: new Date(now.getTime() - 2 * 24 * 3600 * 1000) },
+                { id: 'offline_12', category: 'Public Property Vandalism / Graffiti', description: 'Graffiti on the walls of Humayun\'s Tomb complex.', lat: 28.5933, lng: 77.2507, status: 'Resolved', department: 'Sanitation', assignedOfficer: 'Officer Sharma', urgency: 1, timestamp: new Date(now.getTime() - 20 * 24 * 3600 * 1000) },
+                { id: 'offline_13', category: 'Fallen Tree / Debris', description: 'Small branches on road after windy night in Chanakyapuri.', lat: 28.5973, lng: 77.1956, status: 'In Progress', department: 'Public Works', assignedOfficer: 'Deputy Gupta', urgency: 2, timestamp: new Date(now.getTime() - 1 * 24 * 3600 * 1000) },
+                { id: 'offline_14', category: 'Pothole / Road Damage', description: 'Road surface is deteriorating quickly near Akshardham.', lat: 28.6127, lng: 77.2773, status: 'In Progress', department: 'Public Works', assignedOfficer: 'Inspector Singh', urgency: 4, timestamp: new Date(now.getTime() - 6 * 24 * 3600 * 1000) },
+                { id: 'offline_15', category: 'Waste Management / Overflowing Bin', description: 'Medical waste improperly disposed near AIIMS.', lat: 28.5668, lng: 77.2103, status: 'New', department: 'Sanitation', assignedOfficer: null, urgency: 9, timestamp: new Date(now.getTime() - 4 * 3600 * 1000) },
+                { id: 'offline_16', category: 'Damaged Sidewalk / Footpath', description: 'Missing manhole cover on a busy sidewalk in Chandni Chowk.', lat: 28.6562, lng: 77.2410, status: 'Resolved', department: 'Public Works', assignedOfficer: 'Superintendent Verma', urgency: 9, timestamp: new Date(now.getTime() - 12 * 24 * 3600 * 1000) },
+                { id: 'offline_17', category: 'Streetlight Malfunction', description: 'Flickering streetlight is a distraction for drivers on NH48.', lat: 28.5000, lng: 77.0700, status: 'New', department: 'Electrical', assignedOfficer: null, urgency: 4, timestamp: new Date(now.getTime() - 2 * 24 * 3600 * 1000) },
+                { id: 'offline_18', category: 'Traffic Accident', description: 'A scooter hit a pedestrian. Minor injury reported. Near Dwarka Sector 10.', lat: 28.5783, lng: 77.0612, status: 'New', department: 'Traffic', assignedOfficer: null, urgency: 10, timestamp: new Date(now.getTime() - 1 * 60 * 1000) },
+                { id: 'offline_19', category: 'Flooding', description: 'Basement parking of a building is flooded in Saket.', lat: 28.5285, lng: 77.2185, status: 'Resolved', department: 'Public Works', assignedOfficer: 'Deputy Gupta', urgency: 5, timestamp: new Date(now.getTime() - 18 * 24 * 3600 * 1000) },
+                { id: 'offline_20', category: 'Pothole / Road Damage', description: 'Pothole near a school in Pitampura.', lat: 28.6942, lng: 77.1432, status: 'In Progress', department: 'Public Works', assignedOfficer: 'Inspector Singh', urgency: 3, timestamp: new Date(now.getTime() - 4 * 24 * 3600 * 1000) },
+            ];
+            // Simulate Firestore Timestamps for local data
+            return data.map(item => ({...item, timestamp: { toDate: () => item.timestamp } }));
+        }
 
         function getUrgencyScoreFromTree(issue) {
             const description = issue.description.toLowerCase();
@@ -199,11 +230,10 @@
         }
 
         const DEPARTMENTS = {
-            'Public Works': { categories: ['Pothole / Road Damage', 'Damaged Sidewalk / Footpath', 'Fallen Tree / Debris'], color: 'border-blue-500' },
+            'Public Works': { categories: ['Pothole / Road Damage', 'Damaged Sidewalk / Footpath', 'Fallen Tree / Debris', 'Flooding'], color: 'border-blue-500' },
             'Sanitation': { categories: ['Waste Management / Overflowing Bin', 'Public Property Vandalism / Graffiti'], color: 'border-green-500' },
             'Traffic': { categories: ['Traffic Accident'], color: 'border-red-500' },
-            'Electrical': { categories: ['Streetlight Malfunction'], color: 'border-yellow-500' },
-            'Default': { categories: ['Flooding'], color: 'border-gray-500'}
+            'Electrical': { categories: ['Streetlight Malfunction'], color: 'border-yellow-500' }
         };
 
         function getDepartmentForCategory(category) {
@@ -212,7 +242,7 @@
                     return dept;
                 }
             }
-            return 'Default';
+            return 'Unassigned';
         }
 
         async function seedDatabaseIfEmpty(issuesCollectionRef) {
@@ -220,36 +250,9 @@
             if (!snapshot.empty) return;
             console.log("Database is empty. Seeding with 20 dummy reports...");
 
-            const officers = ['Officer Sharma', 'Inspector Singh', 'Deputy Gupta', 'Superintendent Verma'];
-            const categories = ['Pothole / Road Damage', 'Streetlight Malfunction', 'Waste Management / Overflowing Bin', 'Traffic Accident', 'Fallen Tree / Debris', 'Flooding', 'Damaged Sidewalk / Footpath'];
-            const descriptions = {
-                'Pothole / Road Damage': 'Major pothole on main road causing severe traffic disruption.',
-                'Streetlight Malfunction': 'Streetlight out at a busy intersection, posing a safety risk.',
-                'Waste Management / Overflowing Bin': 'Garbage bin overflowing for days, health hazard.',
-                'Traffic Accident': 'Minor traffic accident, car blocking one lane. No injuries reported.',
-                'Fallen Tree / Debris': 'Fallen tree blocking a residential street.',
-                'Flooding': 'Waterlogging after rain, causing traffic slowdown.',
-                'Damaged Sidewalk / Footpath': 'Broken pavement on sidewalk is a tripping hazard.'
-            };
-            const now = new Date('2025-09-13T11:58:00+05:30');
-            const promises = [];
-            for (let i = 0; i < 20; i++) {
-                const category = categories[Math.floor(Math.random() * categories.length)];
-                const status = ['New', 'In Progress', 'Resolved'][Math.floor(Math.random() * 3)];
-                const issue = {
-                    category,
-                    description: descriptions[category],
-                    lat: 28.4 + Math.random() * 0.5,
-                    lng: 77.0 + Math.random() * 0.4,
-                    photoUrl: `https://placehold.co/400x300/e2e8f0/334155?text=${encodeURIComponent(category.substring(0,15))}`,
-                    status,
-                    timestamp: Timestamp.fromDate(new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000)),
-                    department: getDepartmentForCategory(category),
-                    assignedOfficer: (status !== 'New' && Math.random() > 0.4) ? officers[Math.floor(Math.random() * officers.length)] : null,
-                };
-                issue.urgency = getUrgencyScoreFromTree(issue);
-                promises.push(addDoc(issuesCollectionRef, issue));
-            }
+            const dataToSeed = getBuiltInDummyData().map(({id, ...rest}) => ({...rest, timestamp: Timestamp.fromDate(rest.timestamp.toDate())}));
+            const promises = dataToSeed.map(issue => addDoc(issuesCollectionRef, issue));
+            
             await Promise.all(promises);
             console.log("Database seeding complete.");
         }
@@ -260,9 +263,11 @@
             let markers = {};
             let selectedIssueId = null;
             let db, auth, userId, issuesCollectionRef;
+            let isOfflineMode = false;
 
             const DOMElements = {
                 mainContent: document.querySelector('main'),
+                offlineIndicator: document.getElementById('offline-mode-indicator'),
                 dashboardView: document.getElementById('dashboard-view'),
                 departmentsView: document.getElementById('departments-view'),
                 departmentCardsContainer: document.getElementById('department-cards-container'),
@@ -292,27 +297,36 @@
             
             async function initializeFirebase() {
                  try {
+                    if (typeof __firebase_config === 'undefined' || typeof __app_id === 'undefined' || !__firebase_config) {
+                        throw new Error("Firebase configuration not found. Entering offline mode.");
+                    }
+                    
                     const firebaseConfig = JSON.parse(__firebase_config);
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    const appId = __app_id;
                     const app = initializeApp(firebaseConfig);
                     db = getFirestore(app);
                     auth = getAuth(app);
                     const collectionPath = `/artifacts/${appId}/public/data/issues`;
                     issuesCollectionRef = collection(db, collectionPath);
+
                     onAuthStateChanged(auth, user => {
                         if (user) {
                             userId = user.uid;
                             seedDatabaseIfEmpty(issuesCollectionRef).then(() => listenForData());
                         }
                     });
+
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
                         await signInAnonymously(auth);
                     }
                 } catch (error) {
-                    console.error("Firebase Initialization Error:", error);
-                    DOMElements.mainContent.innerHTML = `<div class="p-4 text-center text-red-600 bg-red-100 rounded-md"><strong>Error:</strong> Could not connect to the database.</div>`;
+                    console.warn(error.message);
+                    isOfflineMode = true;
+                    DOMElements.offlineIndicator.classList.remove('hidden');
+                    allIssues = getBuiltInDummyData();
+                    renderAll();
                 }
             }
 
@@ -324,6 +338,7 @@
             }
 
             async function updateAssignments() {
+                if (isOfflineMode) { alert("Functionality disabled in offline mode."); return; }
                 if (!selectedIssueId) return;
                 const newDept = DOMElements.assignDepartmentSelect.value;
                 const newOfficer = DOMElements.assignOfficerSelect.value;
@@ -335,12 +350,11 @@
                     });
                     DOMElements.assignBtn.textContent = "Saved!";
                     setTimeout(() => { DOMElements.assignBtn.textContent = "Save Assignment"; }, 2000);
-                } catch (error) {
-                    console.error("Failed to save assignments:", error);
-                }
+                } catch (error) { console.error("Failed to save assignments:", error); }
             }
             
             async function updateStatusInDB() {
+                if (isOfflineMode) { alert("Functionality disabled in offline mode."); return; }
                 if (!selectedIssueId) return;
                 const newStatus = DOMElements.statusUpdateSelect.value;
                 const issueDocRef = doc(db, issuesCollectionRef.path, selectedIssueId);
@@ -398,7 +412,7 @@
                     const urgencyColor = urgency > 7 ? 'text-red-600' : urgency > 4 ? 'text-amber-600' : 'text-green-600';
                     const statusColors = { New: 'bg-red-100 text-red-800', 'In Progress': 'bg-amber-100 text-amber-800', Resolved: 'bg-green-100 text-green-800' };
                     row.innerHTML = `
-                        <td class="px-6 py-4 font-mono text-xs">${issue.id.substring(0,5)}...</td>
+                        <td class="px-6 py-4 font-mono text-xs">${issue.id.substring(0,10)}...</td>
                         <td class="px-6 py-4 font-bold ${urgencyColor}">${urgency}/10</td>
                         <td class="px-6 py-4">${issue.department || 'N/A'}</td>
                         <td class="px-6 py-4">${issue.timestamp ? issue.timestamp.toDate().toLocaleDateString() : 'N/A'}</td>
@@ -426,7 +440,7 @@
             
             function renderDepartmentsView() {
                 DOMElements.departmentCardsContainer.innerHTML = '';
-                Object.keys(DEPARTMENTS).filter(d => d !== 'Default').forEach(deptName => {
+                Object.keys(DEPARTMENTS).forEach(deptName => {
                     const deptIssues = allIssues.filter(i => i.department === deptName);
                     const openIssues = deptIssues.filter(i => i.status !== 'Resolved').length;
                     const avgTime = '4.1 Days'; // Mocked
@@ -451,7 +465,7 @@
                 
                 DOMElements.detailsPanel.classList.remove('hidden');
                 DOMElements.detailsId.textContent = issue.id;
-                DOMElements.detailsPhoto.src = issue.photoUrl;
+                DOMElements.detailsPhoto.src = `https://placehold.co/400x300/e2e8f0/334155?text=${encodeURIComponent(issue.category.substring(0,15))}`;
                 DOMElements.detailsCategory.textContent = issue.category;
                 DOMElements.detailsLocation.textContent = `Location: ${issue.lat.toFixed(4)}, ${issue.lng.toFixed(4)}`;
                 DOMElements.detailsDescription.textContent = issue.description;
@@ -495,7 +509,6 @@
 
         window.initAdminApp = function() {
             if (typeof google === 'undefined') {
-                console.error("Google Maps API script failed to load.");
                 document.getElementById('map').innerHTML = `<div class="h-full w-full bg-gray-200 flex items-center justify-center p-4 text-center"><div><p class="text-red-600 font-semibold text-lg">Map could not be loaded.</p><p class="text-gray-600 mt-2 text-sm">Please ensure you have replaced <code class="bg-gray-300 px-1 rounded">YOUR_GOOGLE_MAPS_API_KEY</code> with a valid key.</p></div></div>`;
                 return;
             }

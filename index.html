@@ -12,27 +12,149 @@
         body { font-family: 'Source Sans Pro', sans-serif; background-color: #f8fafc; }
         .dashboard-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
         .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-        .nav-link.active { background-color: #111827; }
-        .department-card { border-left-width: 4px; }
+        .spinner {
+            border: 2px solid rgba(0,0,0,.1);
+            border-left-color: #fff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="flex h-screen">
+
+    <!-- Mock Backend & ML Simulation -->
+    <script>
+        (function() {
+            // This is a self-invoking function to simulate a backend.
+            // In a real application, this logic would live on a server.
+            
+            // --- FAKE DATABASE ---
+            let issuesDB = [];
+
+            // --- ML URGENCY MODEL SIMULATION ---
+            function getUrgencyScore(issue) {
+                let score = 2; // Base score
+                const description = issue.description.toLowerCase();
+
+                // Category-based scoring
+                const categoryScores = {
+                    'Traffic Accident': 5,
+                    'Flooding': 4,
+                    'Fallen Tree / Debris': 3,
+                    'Pothole / Road Damage': 2,
+                    'Streetlight Malfunction': 1
+                };
+                score += categoryScores[issue.category] || 0;
+
+                // Keyword-based scoring from description
+                const keywordScores = {
+                    'injury': 5, 'injuries': 5, 'accident': 4, 'emergency': 5, 'fire': 5,
+                    'blockage': 3, 'blocking': 3, 'major': 3, 'hazard': 4, 'dangerous': 4,
+                    'power': 2, 'leak': 3, 'flooded': 4
+                };
+
+                for (const keyword in keywordScores) {
+                    if (description.includes(keyword)) {
+                        score += keywordScores[keyword];
+                    }
+                }
+                
+                // Cap the score at 10
+                return Math.min(score, 10);
+            }
+            
+            // --- MOCK DATA GENERATION ---
+            function generateInitialData() {
+                 const categories = ['Pothole / Road Damage', 'Streetlight Malfunction', 'Waste Management / Overflowing Bin', 'Damaged Sidewalk / Footpath', 'Fallen Tree / Debris', 'Traffic Accident', 'Flooding'];
+                 const descriptions = {
+                    'Traffic Accident': 'Major accident involving a bus and a car blocking the intersection. Multiple injuries reported.',
+                    'Flooding': 'Main road completely flooded due to heavy rains. Water entering shops. It is a dangerous situation.',
+                    'Fallen Tree / Debris': 'A large tree has fallen and is blocking the entire road near the park. A potential traffic hazard.',
+                    'Pothole / Road Damage': 'There is a very large and dangerous pothole on the main road, causing issues for traffic.',
+                    'Streetlight Malfunction': 'Streetlight has been out for a week, making the area dark and unsafe at night.',
+                    'Waste Management / Overflowing Bin': 'The public trash bin is overflowing, causing a mess on the sidewalk.',
+                    'Damaged Sidewalk / Footpath': 'The sidewalk is cracked and uneven, making it difficult for pedestrians.'
+                 };
+
+                if (issuesDB.length === 0) {
+                    for (let i = 0; i < 25; i++) {
+                        const category = categories[Math.floor(Math.random() * categories.length)];
+                        const statusKeys = ['New', 'In Progress', 'Resolved'];
+                        const status = i < 15 ? 'New' : (i < 22 ? 'In Progress' : 'Resolved');
+                        const issue = {
+                            id: (1000 + i).toString(),
+                            category: category,
+                            description: descriptions[category] || 'Standard report description.',
+                            lat: 28.6139 + (Math.random() - 0.5) * 0.2,
+                            lng: 77.2090 + (Math.random() - 0.5) * 0.2,
+                            status: status,
+                            photoUrl: `https://placehold.co/400x300/e2e8f0/334155?text=${category.substring(0,10)}`,
+                            timestamp: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 14).toISOString()
+                        };
+                        issue.urgency = getUrgencyScore(issue);
+                        issuesDB.push(issue);
+                    }
+                }
+            }
+            
+            // --- SIMULATED API ROUTER ---
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options) {
+                const method = options?.method || 'GET';
+                const body = options?.body ? JSON.parse(options.body) : null;
+                
+                if (url === '/api/issues') {
+                    if (method === 'GET') {
+                        return Promise.resolve(new Response(JSON.stringify(issuesDB), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+                    }
+                    if (method === 'POST') {
+                         const newIssue = {
+                            id: (Date.now()).toString().slice(-6),
+                            ...body,
+                            status: 'New',
+                            timestamp: new Date().toISOString()
+                        };
+                        newIssue.urgency = getUrgencyScore(newIssue);
+                        issuesDB.push(newIssue);
+                        return Promise.resolve(new Response(JSON.stringify(newIssue), { status: 201, headers: { 'Content-Type': 'application/json' } }));
+                    }
+                    if (method === 'PATCH') {
+                        const issue = issuesDB.find(i => i.id === body.id);
+                        if(issue) {
+                            issue.status = body.status;
+                            return Promise.resolve(new Response(JSON.stringify(issue), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+                        }
+                        return Promise.resolve(new Response(null, { status: 404 }));
+                    }
+                }
+                // If the URL is not our API, use the real fetch
+                return originalFetch.apply(this, arguments);
+            };
+
+            generateInitialData();
+        })();
+    </script>
 
     <!-- Sidebar Navigation -->
     <aside class="w-64 bg-gray-800 text-white flex flex-col">
         <div class="h-16 flex items-center justify-center text-xl font-bold border-b border-gray-700">
             MCD ADMIN PORTAL
         </div>
-        <nav id="sidebar-nav" class="flex-1 px-4 py-6 space-y-2">
-            <a href="#" id="nav-dashboard" class="nav-link flex items-center px-4 py-2 hover:bg-gray-700 rounded-md">
+        <nav class="flex-1 px-4 py-6 space-y-2">
+            <a href="#" class="flex items-center px-4 py-2 bg-gray-900 rounded-md">
                 <svg class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
                 Dashboard
             </a>
-            <a href="#" id="nav-reports" class="nav-link flex items-center px-4 py-2 hover:bg-gray-700 rounded-md">
+            <a href="#" class="flex items-center px-4 py-2 hover:bg-gray-700 rounded-md">
                 <svg class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
                 Reports
             </a>
-            <a href="#" id="nav-departments" class="nav-link flex items-center px-4 py-2 hover:bg-gray-700 rounded-md">
+            <a href="#" class="flex items-center px-4 py-2 hover:bg-gray-700 rounded-md">
                  <svg class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm-2 5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                 Departments
             </a>
@@ -44,237 +166,96 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto">
-        <div id="offline-mode-indicator" class="hidden sticky top-0 z-10 bg-yellow-100 border-b-2 border-yellow-300 text-yellow-800 text-center py-2 font-semibold">
-            Offline Demo Mode - Using local sample data
-        </div>
-        <div id="dashboard-view">
-            <div class="p-6">
-                 <div class="flex justify-between items-center mb-6">
-                    <h1 class="text-3xl font-bold text-gray-800">Administrator Dashboard</h1>
-                    <div>
-                        <label for="department-filter" class="sr-only">Filter by Department</label>
-                        <select id="department-filter" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                            <option>All Departments</option>
-                            <option>Public Works</option>
-                            <option>Sanitation</option>
-                            <option>Traffic</option>
-                            <option>Electrical</option>
-                        </select>
-                    </div>
-                </div>
-                <!-- Stats Cards -->
-                <div id="stats-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                    <div class="dashboard-card bg-white p-5 rounded-lg shadow">
-                        <h2 class="text-gray-500 text-sm font-medium">Total Reports</h2>
-                        <p id="stat-total" class="text-3xl font-bold text-gray-800">--</p>
-                    </div>
-                    <div class="dashboard-card bg-white p-5 rounded-lg shadow">
-                        <h2 class="text-gray-500 text-sm font-medium">New Reports (24h)</h2>
-                        <p id="stat-new-today" class="text-3xl font-bold text-indigo-600">--</p>
-                    </div>
-                    <div class="dashboard-card bg-white p-5 rounded-lg shadow">
-                        <h2 class="text-gray-500 text-sm font-medium">Resolution Rate</h2>
-                        <p id="stat-resolution-rate" class="text-3xl font-bold text-green-600">--%</p>
-                    </div>
-                    <div class="dashboard-card bg-white p-5 rounded-lg shadow">
-                        <h2 class="text-gray-500 text-sm font-medium">Avg. Resolution Time</h2>
-                        <p id="stat-avg-time" class="text-3xl font-bold text-amber-600">--</p>
-                    </div>
-                </div>
+    <main class="flex-1 p-6 overflow-y-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Administrator Dashboard</h1>
 
-                <!-- Map and Details View -->
-                <div id="map-details-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                    <div class="lg:col-span-2 bg-white p-4 rounded-lg shadow">
-                        <h2 class="text-xl font-bold text-gray-800 mb-4">Urgency Hotspots</h2>
-                        <div id="map" class="h-96 w-full rounded"></div>
-                    </div>
-                    <div id="issue-details-panel" class="bg-white p-4 rounded-lg shadow hidden">
-                        <h2 class="text-xl font-bold text-gray-800 mb-2">Issue Details</h2>
-                        <p class="text-sm text-gray-500 mb-4">ID: <span id="details-id" class="font-mono"></span></p>
-                        <img id="details-photo" src="" class="w-full h-40 object-cover rounded-md mb-4 bg-gray-200">
-                        <p class="font-bold text-gray-700" id="details-category"></p>
-                        <p class="text-sm text-gray-600 mb-3" id="details-location"></p>
-                        <p class="text-sm bg-gray-50 p-2 rounded border" id="details-description"></p>
-                        
-                         <div class="mt-4 border-t pt-4">
-                            <label for="assign-department" class="block text-sm font-medium text-gray-700">Assign Department</label>
-                            <select id="assign-department" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                                <option>Unassigned</option>
-                                <option>Public Works</option>
-                                <option>Sanitation</option>
-                                <option>Traffic</option>
-                                <option>Electrical</option>
-                            </select>
-                         </div>
-                         <div class="mt-4">
-                            <label for="assign-officer" class="block text-sm font-medium text-gray-700">Assign Officer</label>
-                            <select id="assign-officer" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                                <option>Unassigned</option>
-                                <option>Officer Sharma</option>
-                                <option>Inspector Singh</option>
-                                <option>Deputy Gupta</option>
-                                <option>Superintendent Verma</option>
-                            </select>
-                         </div>
-                         <button id="assign-btn" class="mt-3 w-full bg-gray-600 text-white py-2 rounded-md hover:bg-gray-700">Save Assignment</button>
-
-                        <div class="mt-4 border-t pt-4">
-                            <label for="status-update" class="block text-sm font-medium text-gray-700">Update Status</label>
-                            <select id="status-update" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                                <option>New</option>
-                                <option>In Progress</option>
-                                <option>Resolved</option>
-                            </select>
-                            <button id="update-status-btn" class="mt-3 w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700">Update</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Issues Table -->
-                <div id="reports-table-section" class="bg-white p-4 rounded-lg shadow">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold text-gray-800">Active Reports</h2>
-                        <div>
-                            <select id="admin-category-filter" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                                <option>All Reports</option>
-                                <option>Pothole / Road Damage</option>
-                                <option>Streetlight Malfunction</option>
-                                <option>Waste Management / Overflowing Bin</option>
-                                <option>Public Property Vandalism / Graffiti</option>
-                                <option>Damaged Sidewalk / Footpath</option>
-                                <option>Fallen Tree / Debris</option>
-                                <option>Traffic Accident</option>
-                                <option>Flooding</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left text-gray-500">
-                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                                <tr>
-                                    <th scope="col" class="px-6 py-3">ID</th>
-                                    <th scope="col" class="px-6 py-3">Urgency</th>
-                                    <th scope="col" class="px-6 py-3">Department</th>
-                                    <th scope="col" class="px-6 py-3">Date</th>
-                                    <th scope="col" class="px-6 py-3">Status</th>
-                                    <th scope="col" class="px-6 py-3">Assigned To</th>
-                                </tr>
-                            </thead>
-                            <tbody id="issues-table-body">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div class="dashboard-card bg-white p-5 rounded-lg shadow">
+                <h2 class="text-gray-500 text-sm font-medium">Total Reports</h2>
+                <p id="stat-total" class="text-3xl font-bold text-gray-800">--</p>
+            </div>
+            <div class="dashboard-card bg-white p-5 rounded-lg shadow">
+                <h2 class="text-gray-500 text-sm font-medium">New Reports (24h)</h2>
+                <p id="stat-new-today" class="text-3xl font-bold text-indigo-600">--</p>
+            </div>
+            <div class="dashboard-card bg-white p-5 rounded-lg shadow">
+                <h2 class="text-gray-500 text-sm font-medium">Resolution Rate</h2>
+                <p id="stat-resolution-rate" class="text-3xl font-bold text-green-600">--%</p>
+            </div>
+            <div class="dashboard-card bg-white p-5 rounded-lg shadow">
+                <h2 class="text-gray-500 text-sm font-medium">Avg. Resolution Time</h2>
+                <p id="stat-avg-time" class="text-3xl font-bold text-amber-600">--</p>
             </div>
         </div>
 
-        <div id="departments-view" class="p-6 hidden">
-            <h1 class="text-3xl font-bold text-gray-800 mb-6">Department Overview</h1>
-            <div id="department-cards-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <!-- Map and Details View -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="lg:col-span-2 bg-white p-4 rounded-lg shadow">
+                 <h2 class="text-xl font-bold text-gray-800 mb-4">Urgency Hotspots</h2>
+                <div id="map" class="h-96 w-full rounded"></div>
+            </div>
+            <div id="issue-details-panel" class="bg-white p-4 rounded-lg shadow hidden">
+                 <h2 class="text-xl font-bold text-gray-800 mb-2">Issue Details</h2>
+                 <p class="text-sm text-gray-500 mb-4">ID: <span id="details-id" class="font-mono"></span></p>
+                 <img id="details-photo" src="" class="w-full h-40 object-cover rounded-md mb-4 bg-gray-200">
+                 <p class="font-bold text-gray-700" id="details-category"></p>
+                 <p class="text-sm text-gray-600 mb-3" id="details-location"></p>
+                 <p class="text-sm bg-gray-50 p-2 rounded border" id="details-description"></p>
+
+                 <div class="mt-4 border-t pt-4">
+                    <button id="generate-briefing-btn" class="w-full flex items-center justify-center space-x-2 bg-gray-700 text-white py-2 rounded-md hover:bg-gray-800 mb-2 disabled:opacity-50">
+                        <span>✨ Generate Safety Briefing</span>
+                    </button>
+                    <div id="briefing-container" class="hidden mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-md">
+                        <h4 class="font-bold text-indigo-800 text-sm mb-1">AI Safety & Impact Briefing</h4>
+                        <p id="briefing-text" class="text-sm text-indigo-700"></p>
+                    </div>
+                 </div>
+
+                 <div class="mt-4 border-t pt-4">
+                     <label for="status-update" class="block text-sm font-medium text-gray-700">Update Status</label>
+                     <select id="status-update" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                         <option>New</option>
+                         <option>In Progress</option>
+                         <option>Resolved</option>
+                     </select>
+                     <button id="update-status-btn" class="mt-3 w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700">Update</button>
+                 </div>
+            </div>
+        </div>
+        
+        <!-- Issues Table -->
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Active Reports</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">ID</th>
+                            <th scope="col" class="px-6 py-3">Urgency</th>
+                            <th scope="col" class="px-6 py-3">Category</th>
+                            <th scope="col" class="px-6 py-3">Date</th>
+                            <th scope="col" class="px-6 py-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="issues-table-body">
+                        <!-- Rows will be injected here -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </main>
-    
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, getDocs, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- BUILT-IN DUMMY DATA FOR OFFLINE MODE ---
-        function getBuiltInDummyData() {
-            console.log("Using built-in dummy data for offline mode.");
-            const now = new Date('2025-09-13T12:24:00+05:30');
-            const data = [
-                { id: 'offline_1', category: 'Pothole / Road Damage', description: 'Deep pothole at the entrance of Lajpat Nagar market.', lat: 28.5678, lng: 77.2436, status: 'New', department: 'Public Works', assignedOfficer: null, urgency: 4, timestamp: new Date(now.getTime() - 2 * 24 * 3600 * 1000) },
-                { id: 'offline_2', category: 'Traffic Accident', description: 'Minor collision near India Gate, causing traffic jam.', lat: 28.6129, lng: 77.2295, status: 'In Progress', department: 'Traffic', assignedOfficer: 'Inspector Singh', urgency: 8, timestamp: new Date(now.getTime() - 1 * 3600 * 1000) },
-                { id: 'offline_3', category: 'Waste Management / Overflowing Bin', description: 'Garbage bin near Connaught Place is overflowing.', lat: 28.6330, lng: 77.2199, status: 'Resolved', department: 'Sanitation', assignedOfficer: 'Officer Sharma', urgency: 3, timestamp: new Date(now.getTime() - 5 * 24 * 3600 * 1000) },
-                { id: 'offline_4', category: 'Streetlight Malfunction', description: 'Streetlight not working on main road in Karol Bagh.', lat: 28.6496, lng: 77.1912, status: 'In Progress', department: 'Electrical', assignedOfficer: 'Deputy Gupta', urgency: 5, timestamp: new Date(now.getTime() - 3 * 24 * 3600 * 1000) },
-                { id: 'offline_5', category: 'Fallen Tree / Debris', description: 'A large tree has fallen and is blocking a road in Hauz Khas.', lat: 28.5535, lng: 77.2052, status: 'Resolved', department: 'Public Works', assignedOfficer: 'Superintendent Verma', urgency: 7, timestamp: new Date(now.getTime() - 10 * 24 * 3600 * 1000) },
-                { id: 'offline_6', category: 'Flooding', description: 'Severe waterlogging at Minto Road underpass after rain.', lat: 28.6333, lng: 77.2344, status: 'New', department: 'Public Works', assignedOfficer: null, urgency: 7, timestamp: new Date(now.getTime() - 12 * 3600 * 1000) },
-                { id: 'offline_7', category: 'Damaged Sidewalk / Footpath', description: 'Pavement is broken near Nehru Place metro station.', lat: 28.5478, lng: 77.2514, status: 'In Progress', department: 'Public Works', assignedOfficer: 'Officer Sharma', urgency: 3, timestamp: new Date(now.getTime() - 8 * 24 * 3600 * 1000) },
-                { id: 'offline_8', category: 'Traffic Accident', description: 'Major accident involving a bus near Dhaula Kuan. Emergency services on site.', lat: 28.5912, lng: 77.1690, status: 'New', department: 'Traffic', assignedOfficer: null, urgency: 10, timestamp: new Date(now.getTime() - 30 * 60 * 1000) },
-                { id: 'offline_9', category: 'Waste Management / Overflowing Bin', description: 'Bin overflowing in residential area of Rohini.', lat: 28.7041, lng: 77.1025, status: 'New', department: 'Sanitation', assignedOfficer: null, urgency: 2, timestamp: new Date(now.getTime() - 22 * 3600 * 1000) },
-                { id: 'offline_10', category: 'Pothole / Road Damage', description: 'Series of dangerous potholes on the Outer Ring Road.', lat: 28.6791, lng: 77.1599, status: 'Resolved', department: 'Public Works', assignedOfficer: 'Superintendent Verma', urgency: 5, timestamp: new Date(now.getTime() - 15 * 24 * 3600 * 1000) },
-                { id: 'offline_11', category: 'Streetlight Malfunction', description: 'Entire street in Vasant Kunj has no lighting.', lat: 28.5284, lng: 77.1542, status: 'New', department: 'Electrical', assignedOfficer: null, urgency: 6, timestamp: new Date(now.getTime() - 2 * 24 * 3600 * 1000) },
-                { id: 'offline_12', category: 'Public Property Vandalism / Graffiti', description: 'Graffiti on the walls of Humayun\'s Tomb complex.', lat: 28.5933, lng: 77.2507, status: 'Resolved', department: 'Sanitation', assignedOfficer: 'Officer Sharma', urgency: 1, timestamp: new Date(now.getTime() - 20 * 24 * 3600 * 1000) },
-                { id: 'offline_13', category: 'Fallen Tree / Debris', description: 'Small branches on road after windy night in Chanakyapuri.', lat: 28.5973, lng: 77.1956, status: 'In Progress', department: 'Public Works', assignedOfficer: 'Deputy Gupta', urgency: 2, timestamp: new Date(now.getTime() - 1 * 24 * 3600 * 1000) },
-                { id: 'offline_14', category: 'Pothole / Road Damage', description: 'Road surface is deteriorating quickly near Akshardham.', lat: 28.6127, lng: 77.2773, status: 'In Progress', department: 'Public Works', assignedOfficer: 'Inspector Singh', urgency: 4, timestamp: new Date(now.getTime() - 6 * 24 * 3600 * 1000) },
-                { id: 'offline_15', category: 'Waste Management / Overflowing Bin', description: 'Medical waste improperly disposed near AIIMS.', lat: 28.5668, lng: 77.2103, status: 'New', department: 'Sanitation', assignedOfficer: null, urgency: 9, timestamp: new Date(now.getTime() - 4 * 3600 * 1000) },
-                { id: 'offline_16', category: 'Damaged Sidewalk / Footpath', description: 'Missing manhole cover on a busy sidewalk in Chandni Chowk.', lat: 28.6562, lng: 77.2410, status: 'Resolved', department: 'Public Works', assignedOfficer: 'Superintendent Verma', urgency: 9, timestamp: new Date(now.getTime() - 12 * 24 * 3600 * 1000) },
-                { id: 'offline_17', category: 'Streetlight Malfunction', description: 'Flickering streetlight is a distraction for drivers on NH48.', lat: 28.5000, lng: 77.0700, status: 'New', department: 'Electrical', assignedOfficer: null, urgency: 4, timestamp: new Date(now.getTime() - 2 * 24 * 3600 * 1000) },
-                { id: 'offline_18', category: 'Traffic Accident', description: 'A scooter hit a pedestrian. Minor injury reported. Near Dwarka Sector 10.', lat: 28.5783, lng: 77.0612, status: 'New', department: 'Traffic', assignedOfficer: null, urgency: 10, timestamp: new Date(now.getTime() - 1 * 60 * 1000) },
-                { id: 'offline_19', category: 'Flooding', description: 'Basement parking of a building is flooded in Saket.', lat: 28.5285, lng: 77.2185, status: 'Resolved', department: 'Public Works', assignedOfficer: 'Deputy Gupta', urgency: 5, timestamp: new Date(now.getTime() - 18 * 24 * 3600 * 1000) },
-                { id: 'offline_20', category: 'Pothole / Road Damage', description: 'Pothole near a school in Pitampura.', lat: 28.6942, lng: 77.1432, status: 'In Progress', department: 'Public Works', assignedOfficer: 'Inspector Singh', urgency: 3, timestamp: new Date(now.getTime() - 4 * 24 * 3600 * 1000) },
-            ];
-            // Simulate Firestore Timestamps for local data
-            return data.map(item => ({...item, timestamp: { toDate: () => item.timestamp } }));
-        }
-
-        function getUrgencyScoreFromTree(issue) {
-            const description = issue.description.toLowerCase();
-            if (issue.category === 'Traffic Accident') {
-                if (description.includes('injury') || description.includes('emergency')) return 10;
-                if (description.includes('major') || description.includes('blockage')) return 8;
-                return 6;
-            }
-            if (issue.category === 'Flooding' || issue.category === 'Fallen Tree / Debris') {
-                if (description.includes('hazard') || description.includes('dangerous')) return 7;
-                return 5;
-            }
-            if (issue.category === 'Pothole / Road Damage' || issue.category === 'Damaged Sidewalk / Footpath') {
-                if (description.includes('dangerous') || description.includes('major')) return 4;
-                return 3;
-            }
-            return 2;
-        }
-
-        const DEPARTMENTS = {
-            'Public Works': { categories: ['Pothole / Road Damage', 'Damaged Sidewalk / Footpath', 'Fallen Tree / Debris', 'Flooding'], color: 'border-blue-500' },
-            'Sanitation': { categories: ['Waste Management / Overflowing Bin', 'Public Property Vandalism / Graffiti'], color: 'border-green-500' },
-            'Traffic': { categories: ['Traffic Accident'], color: 'border-red-500' },
-            'Electrical': { categories: ['Streetlight Malfunction'], color: 'border-yellow-500' }
-        };
-
-        function getDepartmentForCategory(category) {
-            for (const dept in DEPARTMENTS) {
-                if (DEPARTMENTS[dept].categories.includes(category)) {
-                    return dept;
-                }
-            }
-            return 'Unassigned';
-        }
-
-        async function seedDatabaseIfEmpty(issuesCollectionRef) {
-            const snapshot = await getDocs(issuesCollectionRef);
-            if (!snapshot.empty) return;
-            console.log("Database is empty. Seeding with 20 dummy reports...");
-
-            const dataToSeed = getBuiltInDummyData().map(({id, ...rest}) => ({...rest, timestamp: Timestamp.fromDate(rest.timestamp.toDate())}));
-            const promises = dataToSeed.map(issue => addDoc(issuesCollectionRef, issue));
-            
-            await Promise.all(promises);
-            console.log("Database seeding complete.");
-        }
-
+    <script>
         function AdminApp() {
+            const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=`;
             let allIssues = [];
             let map, infoWindow;
             let markers = {};
             let selectedIssueId = null;
-            let db, auth, userId, issuesCollectionRef;
-            let isOfflineMode = false;
 
             const DOMElements = {
-                mainContent: document.querySelector('main'),
-                offlineIndicator: document.getElementById('offline-mode-indicator'),
-                dashboardView: document.getElementById('dashboard-view'),
-                departmentsView: document.getElementById('departments-view'),
-                departmentCardsContainer: document.getElementById('department-cards-container'),
-                navDashboard: document.getElementById('nav-dashboard'),
-                navReports: document.getElementById('nav-reports'),
-                navDepartments: document.getElementById('nav-departments'),
-                reportsTableSection: document.getElementById('reports-table-section'),
                 statTotal: document.getElementById('stat-total'),
                 statNewToday: document.getElementById('stat-new-today'),
                 statResolutionRate: document.getElementById('stat-resolution-rate'),
@@ -288,173 +269,121 @@
                 detailsDescription: document.getElementById('details-description'),
                 statusUpdateSelect: document.getElementById('status-update'),
                 updateStatusBtn: document.getElementById('update-status-btn'),
-                assignDepartmentSelect: document.getElementById('assign-department'),
-                assignOfficerSelect: document.getElementById('assign-officer'),
-                assignBtn: document.getElementById('assign-btn'),
-                adminCategoryFilter: document.getElementById('admin-category-filter'),
-                departmentFilter: document.getElementById('department-filter'),
+                generateBriefingBtn: document.getElementById('generate-briefing-btn'),
+                briefingContainer: document.getElementById('briefing-container'),
+                briefingText: document.getElementById('briefing-text'),
             };
             
-            async function initializeFirebase() {
-                 try {
-                    if (typeof __firebase_config === 'undefined' || typeof __app_id === 'undefined' || !__firebase_config) {
-                        throw new Error("Firebase configuration not found. Entering offline mode.");
-                    }
-                    
-                    const firebaseConfig = JSON.parse(__firebase_config);
-                    const appId = __app_id;
-                    const app = initializeApp(firebaseConfig);
-                    db = getFirestore(app);
-                    auth = getAuth(app);
-                    const collectionPath = `/artifacts/${appId}/public/data/issues`;
-                    issuesCollectionRef = collection(db, collectionPath);
+            async function generateSafetyBriefing() {
+                if (!selectedIssueId) return;
+                const issue = allIssues.find(i => i.id === selectedIssueId);
+                if (!issue) return;
 
-                    onAuthStateChanged(auth, user => {
-                        if (user) {
-                            userId = user.uid;
-                            seedDatabaseIfEmpty(issuesCollectionRef).then(() => listenForData());
-                        }
+                const prompt = `Based on the following civic issue report, provide a 2-sentence safety and impact briefing for a municipal official in Delhi. Focus on potential dangers and urgency. Report Category: '${issue.category}'. Report Description: '${issue.description}'`;
+
+                const btn = DOMElements.generateBriefingBtn;
+                btn.disabled = true;
+                btn.innerHTML = `<div class="spinner"></div><span>Generating Briefing...</span>`;
+                DOMElements.briefingContainer.classList.add('hidden');
+
+                try {
+                    const apiKey = ""; // Leave empty
+                    const response = await fetch(`${GEMINI_API_URL}${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
                     });
 
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
+                    if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+                    
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                    if (text) {
+                        DOMElements.briefingText.textContent = text;
+                        DOMElements.briefingContainer.classList.remove('hidden');
                     } else {
-                        await signInAnonymously(auth);
+                        throw new Error("No content in API response.");
                     }
                 } catch (error) {
-                    console.warn(error.message);
-                    isOfflineMode = true;
-                    DOMElements.offlineIndicator.classList.remove('hidden');
-                    allIssues = getBuiltInDummyData();
-                    renderAll();
+                    console.error("Gemini Safety Briefing Error:", error);
+                    DOMElements.briefingText.textContent = "Could not generate AI briefing.";
+                    DOMElements.briefingContainer.classList.remove('hidden');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>✨ Regenerate Safety Briefing</span>';
                 }
             }
 
-            function listenForData() {
-                onSnapshot(issuesCollectionRef, (snapshot) => {
-                    allIssues = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderAll();
-                }, (error) => console.error("Error listening to Firestore:", error));
-            }
-
-            async function updateAssignments() {
-                if (isOfflineMode) { alert("Functionality disabled in offline mode."); return; }
-                if (!selectedIssueId) return;
-                const newDept = DOMElements.assignDepartmentSelect.value;
-                const newOfficer = DOMElements.assignOfficerSelect.value;
-                const issueDocRef = doc(db, issuesCollectionRef.path, selectedIssueId);
-                try {
-                    await updateDoc(issueDocRef, {
-                        department: newDept === 'Unassigned' ? null : newDept,
-                        assignedOfficer: newOfficer === 'Unassigned' ? null : newOfficer,
-                    });
-                    DOMElements.assignBtn.textContent = "Saved!";
-                    setTimeout(() => { DOMElements.assignBtn.textContent = "Save Assignment"; }, 2000);
-                } catch (error) { console.error("Failed to save assignments:", error); }
-            }
-            
-            async function updateStatusInDB() {
-                if (isOfflineMode) { alert("Functionality disabled in offline mode."); return; }
-                if (!selectedIssueId) return;
-                const newStatus = DOMElements.statusUpdateSelect.value;
-                const issueDocRef = doc(db, issuesCollectionRef.path, selectedIssueId);
-                try {
-                    await updateDoc(issueDocRef, { status: newStatus });
-                    DOMElements.detailsPanel.classList.add('hidden');
-                    selectedIssueId = null;
-                } catch(error) { console.error("Failed to update status:", error); }
-            }
 
             function initMap() {
-                 map = new google.maps.Map(document.getElementById("map"), { center: { lat: 28.6139, lng: 77.2090 }, zoom: 11, styles: [{"featureType":"all","elementType":"geometry.fill","stylers":[{"weight":"2.00"}]},{"featureType":"all","elementType":"geometry.stroke","stylers":[{"color":"#9c9c9c"}]},{"featureType":"all","elementType":"labels.text","stylers":[{"visibility":"on"}]},{"featureType":"landscape","elementType":"geometry","stylers":[{"color":"#f5f5f5"}]},{"featureType":"landscape.man_made","elementType":"geometry.fill","stylers":[{"color":"#ffffff"}]},{"featureType":"poi","elementType":"geometry","stylers":[{"color":"#f5f5f5"}]},{"featureType":"road","elementType":"geometry","stylers":[{"color":"#ffffff"}]},{"featureType":"road.arterial","elementType":"labels.text.fill","stylers":[{"color":"#757575"}]},{"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#dadada"}]},{"featureType":"road.highway","elementType":"labels.text.fill","stylers":[{"color":"#616161"}]},{"featureType":"road.local","elementType":"labels.text.fill","stylers":[{"color":"#9e9e9e"}]},{"featureType":"transit","elementType":"geometry","stylers":[{"color":"#f5f5f5"}]},{"featureType":"water","elementType":"geometry","stylers":[{"color":"#c9c9c9"}]}], disableDefaultUI: true, zoomControl: true });
-                 infoWindow = new google.maps.InfoWindow();
-            }
-            
-            function getFilteredIssues() {
-                let issues = allIssues;
-                const deptFilter = DOMElements.departmentFilter.value;
-                const catFilter = DOMElements.adminCategoryFilter.value;
-                if (deptFilter !== 'All Departments') issues = issues.filter(i => i.department === deptFilter);
-                if (catFilter !== 'All Reports') issues = issues.filter(i => i.category === catFilter);
-                return issues;
-            }
-            
-            function renderAll() {
-                const filteredIssues = getFilteredIssues();
-                renderDashboard(filteredIssues);
-                renderDepartmentsView();
+                 map = new google.maps.Map(document.getElementById("map"), {
+                    center: { lat: 28.6139, lng: 77.2090 }, zoom: 11,
+                    styles: [{"featureType":"all","elementType":"geometry.fill","stylers":[{"weight":"2.00"}]},{"featureType":"all","elementType":"geometry.stroke","stylers":[{"color":"#9c9c9c"}]},{"featureType":"all","elementType":"labels.text","stylers":[{"visibility":"on"}]},{"featureType":"landscape","elementType":"geometry","stylers":[{"color":"#f5f5f5"}]},{"featureType":"landscape.man_made","elementType":"geometry.fill","stylers":[{"color":"#ffffff"}]},{"featureType":"poi","elementType":"geometry","stylers":[{"color":"#f5f5f5"}]},{"featureType":"road","elementType":"geometry","stylers":[{"color":"#ffffff"}]},{"featureType":"road.arterial","elementType":"labels.text.fill","stylers":[{"color":"#757575"}]},{"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#dadada"}]},{"featureType":"road.highway","elementType":"labels.text.fill","stylers":[{"color":"#616161"}]},{"featureType":"road.local","elementType":"labels.text.fill","stylers":[{"color":"#9e9e9e"}]},{"featureType":"transit","elementType":"geometry","stylers":[{"color":"#f5f5f5"}]},{"featureType":"water","elementType":"geometry","stylers":[{"color":"#c9c9c9"}]}],
+                    disableDefaultUI: true, zoomControl: true,
+                });
+                infoWindow = new google.maps.InfoWindow();
             }
 
-            function renderDashboard(issues) {
-                updateStats(issues);
-                renderTable(issues);
-                renderMapMarkers(issues);
+            async function fetchData() {
+                try {
+                    const response = await fetch('/api/issues');
+                    allIssues = await response.json();
+                    renderDashboard();
+                } catch (error) {
+                    console.error("Error fetching data:", error);
+                }
             }
 
-            function updateStats(issues) {
-                const total = issues.length;
-                const newToday = issues.filter(i => i.timestamp && (new Date() - i.timestamp.toDate()) < 86400000).length;
-                const resolved = issues.filter(i => i.status === 'Resolved').length;
+            function renderDashboard() {
+                updateStats();
+                renderTable();
+                renderMapMarkers();
+            }
+
+            function updateStats() {
+                const total = allIssues.length;
+                const newToday = allIssues.filter(i => (new Date() - new Date(i.timestamp)) < 86400000).length;
+                const resolved = allIssues.filter(i => i.status === 'Resolved').length;
                 DOMElements.statTotal.textContent = total;
                 DOMElements.statNewToday.textContent = newToday;
                 DOMElements.statResolutionRate.textContent = total > 0 ? `${Math.round((resolved/total)*100)}%` : '0%';
                 DOMElements.statAvgTime.textContent = '3.2 Days'; // Mocked
             }
 
-            function renderTable(issues) {
+            function renderTable() {
                 DOMElements.tableBody.innerHTML = '';
-                const sortedIssues = [...issues].sort((a, b) => (b.urgency || 0) - (a.urgency || 0));
+                const sortedIssues = [...allIssues].sort((a, b) => b.urgency - a.urgency);
                 sortedIssues.forEach(issue => {
                     const row = document.createElement('tr');
                     row.className = 'bg-white border-b hover:bg-gray-50 cursor-pointer';
                     row.dataset.id = issue.id;
-                    const urgency = issue.urgency || 0;
-                    const urgencyColor = urgency > 7 ? 'text-red-600' : urgency > 4 ? 'text-amber-600' : 'text-green-600';
+                    const urgencyColor = issue.urgency > 7 ? 'text-red-600' : issue.urgency > 4 ? 'text-amber-600' : 'text-green-600';
                     const statusColors = { New: 'bg-red-100 text-red-800', 'In Progress': 'bg-amber-100 text-amber-800', Resolved: 'bg-green-100 text-green-800' };
                     row.innerHTML = `
-                        <td class="px-6 py-4 font-mono text-xs">${issue.id.substring(0,10)}...</td>
-                        <td class="px-6 py-4 font-bold ${urgencyColor}">${urgency}/10</td>
-                        <td class="px-6 py-4">${issue.department || 'N/A'}</td>
-                        <td class="px-6 py-4">${issue.timestamp ? issue.timestamp.toDate().toLocaleDateString() : 'N/A'}</td>
+                        <td class="px-6 py-4 font-mono">${issue.id}</td>
+                        <td class="px-6 py-4 font-bold ${urgencyColor}">${issue.urgency}/10</td>
+                        <td class="px-6 py-4">${issue.category}</td>
+                        <td class="px-6 py-4">${new Date(issue.timestamp).toLocaleDateString()}</td>
                         <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${statusColors[issue.status]}">${issue.status}</span></td>
-                        <td class="px-6 py-4 font-medium text-gray-600">${issue.assignedOfficer || 'N/A'}</td>`;
+                    `;
                     row.addEventListener('click', () => handleRowClick(issue.id));
                     DOMElements.tableBody.appendChild(row);
                 });
             }
 
-            function renderMapMarkers(issues) {
+            function renderMapMarkers() {
                 Object.values(markers).forEach(m => m.setMap(null));
                 markers = {};
-                issues.forEach(issue => {
-                     const urgency = issue.urgency || 0;
-                     const color = urgency > 7 ? '#DC2626' : urgency > 4 ? '#F59E0B' : '#10B981';
+                allIssues.forEach(issue => {
+                     const urgencyColors = { high: '#DC2626', medium: '#F59E0B', low: '#10B981' };
+                     const color = issue.urgency > 7 ? urgencyColors.high : issue.urgency > 4 ? urgencyColors.medium : urgencyColors.low;
                      const marker = new google.maps.Marker({
                         position: { lat: issue.lat, lng: issue.lng }, map,
-                        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 5 + urgency / 2, fillColor: color, fillOpacity: 0.8, strokeColor: 'white', strokeWeight: 1.5 }
+                        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 5 + issue.urgency / 2, fillColor: color, fillOpacity: 0.8, strokeColor: 'white', strokeWeight: 1.5 }
                      });
                      marker.addListener('click', () => handleRowClick(issue.id));
                      markers[issue.id] = marker;
-                });
-            }
-            
-            function renderDepartmentsView() {
-                DOMElements.departmentCardsContainer.innerHTML = '';
-                Object.keys(DEPARTMENTS).forEach(deptName => {
-                    const deptIssues = allIssues.filter(i => i.department === deptName);
-                    const openIssues = deptIssues.filter(i => i.status !== 'Resolved').length;
-                    const avgTime = '4.1 Days'; // Mocked
-                    const officers = new Set(deptIssues.map(i => i.assignedOfficer).filter(Boolean)).size;
-                    const card = `
-                        <div class="department-card bg-white p-5 rounded-lg shadow ${DEPARTMENTS[deptName].color}">
-                            <h3 class="text-xl font-bold text-gray-800">${deptName}</h3>
-                            <div class="mt-4 space-y-2">
-                                <p class="text-gray-600"><strong>${openIssues}</strong> Open Cases</p>
-                                <p class="text-gray-600"><strong>${avgTime}</strong> Avg. Resolution Time</p>
-                                <p class="text-gray-600"><strong>${officers}</strong> Officers Assigned</p>
-                            </div>
-                        </div>`;
-                    DOMElements.departmentCardsContainer.innerHTML += card;
                 });
             }
 
@@ -463,59 +392,71 @@
                 const issue = allIssues.find(i => i.id === id);
                 if (!issue) return;
                 
+                DOMElements.briefingContainer.classList.add('hidden');
+                DOMElements.generateBriefingBtn.innerHTML = '<span>✨ Generate Safety Briefing</span>';
+
+                // Update details panel
                 DOMElements.detailsPanel.classList.remove('hidden');
                 DOMElements.detailsId.textContent = issue.id;
-                DOMElements.detailsPhoto.src = `https://placehold.co/400x300/e2e8f0/334155?text=${encodeURIComponent(issue.category.substring(0,15))}`;
+                DOMElements.detailsPhoto.src = issue.photoUrl;
                 DOMElements.detailsCategory.textContent = issue.category;
                 DOMElements.detailsLocation.textContent = `Location: ${issue.lat.toFixed(4)}, ${issue.lng.toFixed(4)}`;
                 DOMElements.detailsDescription.textContent = issue.description;
                 DOMElements.statusUpdateSelect.value = issue.status;
-                DOMElements.assignDepartmentSelect.value = issue.department || 'Unassigned';
-                DOMElements.assignOfficerSelect.value = issue.assignedOfficer || 'Unassigned';
 
-                document.querySelectorAll('#issues-table-body tr').forEach(row => row.classList.toggle('bg-indigo-100', row.dataset.id === id));
+                // Highlight table row
+                document.querySelectorAll('#issues-table-body tr').forEach(row => {
+                    row.classList.toggle('bg-indigo-100', row.dataset.id === id);
+                });
+                
+                // Focus map
                 map.panTo({ lat: issue.lat, lng: issue.lng });
                 map.setZoom(15);
             }
 
-            function bindEventListeners() {
-                DOMElements.navDashboard.addEventListener('click', (e) => { e.preventDefault(); showView('dashboard'); });
-                DOMElements.navReports.addEventListener('click', (e) => { e.preventDefault(); showView('dashboard'); DOMElements.reportsTableSection.scrollIntoView({ behavior: 'smooth' }); });
-                DOMElements.navDepartments.addEventListener('click', (e) => { e.preventDefault(); showView('departments'); });
-                DOMElements.assignBtn.addEventListener('click', updateAssignments);
-                DOMElements.updateStatusBtn.addEventListener('click', updateStatusInDB);
-                DOMElements.adminCategoryFilter.addEventListener('change', renderAll);
-                DOMElements.departmentFilter.addEventListener('change', renderAll);
-            }
-
-            function showView(viewName) {
-                DOMElements.dashboardView.classList.toggle('hidden', viewName !== 'dashboard');
-                DOMElements.departmentsView.classList.toggle('hidden', viewName !== 'departments');
-                updateActiveNav(document.getElementById(`nav-${viewName}`));
-            }
-
-            function updateActiveNav(activeLink) {
-                [DOMElements.navDashboard, DOMElements.navReports, DOMElements.navDepartments].forEach(link => link.classList.remove('active'));
-                activeLink.classList.add('active');
+            async function updateStatus() {
+                if (!selectedIssueId) return;
+                const newStatus = DOMElements.statusUpdateSelect.value;
+                try {
+                    const response = await fetch('/api/issues', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: selectedIssueId, status: newStatus }),
+                    });
+                    if (!response.ok) throw new Error('Update failed');
+                    // Refresh data to reflect change
+                    await fetchData();
+                     DOMElements.detailsPanel.classList.add('hidden');
+                } catch(error) {
+                    console.error("Failed to update status:", error);
+                }
             }
             
             this.start = function() {
                 initMap();
-                initializeFirebase();
-                bindEventListeners();
-                showView('dashboard');
+                fetchData();
+                DOMElements.updateStatusBtn.addEventListener('click', updateStatus);
+                DOMElements.generateBriefingBtn.addEventListener('click', generateSafetyBriefing);
             }
         }
 
-        window.initAdminApp = function() {
-            if (typeof google === 'undefined') {
-                document.getElementById('map').innerHTML = `<div class="h-full w-full bg-gray-200 flex items-center justify-center p-4 text-center"><div><p class="text-red-600 font-semibold text-lg">Map could not be loaded.</p><p class="text-gray-600 mt-2 text-sm">Please ensure you have replaced <code class="bg-gray-300 px-1 rounded">YOUR_GOOGLE_MAPS_API_KEY</code> with a valid key.</p></div></div>`;
+        function initAdminApp() {
+            if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
+                console.error("Google Maps API script failed to load. Please check your API key and network connection.");
+                 document.getElementById('map').innerHTML = '<div class="h-full w-full bg-gray-200 flex items-center justify-center p-4 text-center"><p class="text-red-600 font-semibold">Map could not be loaded.<br>Please ensure you have replaced "YOUR_GOOGLE_MAPS_API_KEY" with a valid key in the script tag at the bottom of the HTML file.</p></div>';
                 return;
             }
             const app = new AdminApp();
             app.start();
         }
     </script>
+    <!-- 
+    /**********************************************************************************************************/
+    /* */
+    /* IMPORTANT: You must replace "YOUR_GOOGLE_MAPS_API_KEY" with a valid Google Maps JavaScript API key.   */
+    /* */
+    /**********************************************************************************************************/
+    -->
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDkPlpH4yXoQGDVy3eOCu32hXcR86aVzEQ&callback=initAdminApp"></script>
 </body>
 </html>
